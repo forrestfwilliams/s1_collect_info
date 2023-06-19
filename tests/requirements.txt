@@ -1,3 +1,7 @@
-pytest
+asf_search
+beautifulsoup4
 boto3
+geopandas
+lxml
+pytest
 requests
