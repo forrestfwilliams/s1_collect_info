@@ -112,9 +112,24 @@ def find_valid_collect(gdf: gpd.GeoDataFrame, footprint: Polygon, mode: str, orb
         filtered = filtered.sort_values('begin_date', ascending=True).reset_index(drop=True)
         next_collect = filtered['begin_date'][0].date()
     else:
-        collect_scheduled=False
+        collect_scheduled = False
         next_collect = None
     return collect_scheduled, next_collect
+
+
+def get_next_collect(granule):
+    prep_collection_plan()
+    gdf = gpd.read_file('collection.geojson')
+    max_date = gdf['end_date'].max().date()
+    footprint, mode, orbit_relative = get_granule_info(granule)
+    # gpd.GeoDataFrame({'id': [1], 'geometry': [footprint]}, crs='EPSG:4326').to_file('scene.geojson')
+    collect_scheduled, next_collect = find_valid_collect(gdf, footprint, mode, orbit_relative)
+    if collect_scheduled:
+        message = f'Next interferometrically valid collect is {next_collect}'
+    else:
+        message = f'No interferometrically valid collect is scheduled on or before {max_date}'
+
+    return message
 
 
 def lambda_handler(event, context):
@@ -146,29 +161,19 @@ def lambda_handler(event, context):
     #     print(e)
 
     #     raise e
+    from pprint import pprint
+    pprint(event)
+    granule = event['granule']
+    message = get_next_collect(granule)
 
     return {
-        "statusCode": 200,
-        "body": json.dumps(
+        'statusCode': 200,
+        'body': json.dumps(
             {
-                "message": "hello world",
-                # "location": ip.text.replace("\n", "")
+                'message': message,
             }
         ),
     }
-
-
-def get_next_collect(granule):
-    prep_collection_plan()
-    gdf = gpd.read_file('collection.geojson')
-    max_date = gdf['end_date'].max().date()
-    footprint, mode, orbit_relative = get_granule_info(granule)
-    # gpd.GeoDataFrame({'id': [1], 'geometry': [footprint]}, crs='EPSG:4326').to_file('scene.geojson')
-    collect_scheduled, next_collect = find_valid_collect(gdf, footprint, mode, orbit_relative)
-    if collect_scheduled:
-        print(f'Next interferometrically valid collect is {next_collect}')
-    else:
-        print(f'No interferometrically valid collect is scheduled on or before {max_date}')
 
 
 def main():
@@ -177,7 +182,8 @@ def main():
     parser = ArgumentParser()
     parser.add_argument('granule')
     args = parser.parse_args()
-    get_next_collect(args.granule)
+    message = get_next_collect(args.granule)
+    print(message)
 
 
 if __name__ == '__main__':
