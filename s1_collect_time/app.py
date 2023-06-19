@@ -161,9 +161,8 @@ def lambda_handler(event, context):
     #     print(e)
 
     #     raise e
-    from pprint import pprint
-    pprint(event)
-    granule = event['granule']
+    print(event)
+    granule = event['pathParameters']['granule']
     message = get_next_collect(granule)
 
     return {

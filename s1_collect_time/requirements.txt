@@ -1,5 +1,5 @@
+geopandas
 asf_search
 beautifulsoup4
-geopandas
 lxml
 requests
