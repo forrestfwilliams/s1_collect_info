@@ -1,5 +1,6 @@
 import json
 import requests
+import tempfile
 from argparse import ArgumentParser
 from datetime import datetime
 from lxml import etree
@@ -23,19 +24,19 @@ def scrape_esa_website_for_download_urls():
     ul = div.find('ul')
     hrefs = [a['href'] for a in ul.find_all('a')]
     download_urls = [f'https://sentinel.esa.int{href}' for href in hrefs]
-    return download_urls
+    return download_urls[0:1]
 
 
-def download_kml(url, out_name='collection.kml'):
+def download_kml(url, out_path='collection.kml'):
     response = requests.get(url)
     if response.status_code == 200:
-        with open(out_name, 'wb') as file:
+        with open(out_path, 'wb') as file:
             file.write(response.content)
         print('File downloaded successfully.')
     else:
         print('Failed to download the file.')
 
-    return out_name
+    return out_path
 
 
 def parse_placemark(placemark: etree.Element):
@@ -69,19 +70,19 @@ def parse_kml(kml_path: Path):
     return gdf
 
 
-def prep_collection_plan(out_path='collection.geojson'):
+def prep_collection_plan(out_name='collection.geojson', dir=Path('.')):
     urls = scrape_esa_website_for_download_urls()
 
     gdfs = []
     for url in urls:
         name = Path(url).name
-        collection_gdf_path = Path(f'{name}.geojson')
+        collection_gdf_path =dir / f'{name}.geojson'
 
         if collection_gdf_path.exists():
             print('Collection already prepared.')
             gdf = gpd.read_file(collection_gdf_path)
         else:
-            file_path = download_kml(url)
+            file_path = download_kml(url, dir / 'collection.kml')
             gdf = parse_kml(file_path)
             gdf.to_file(collection_gdf_path)
         gdfs.append(gdf)
@@ -89,9 +90,10 @@ def prep_collection_plan(out_path='collection.geojson'):
     full_gdf = pd.concat(gdfs).drop_duplicates()
     full_gdf = full_gdf.loc[full_gdf['begin_date'] >= datetime.now()].copy()
     full_gdf = full_gdf.sort_values('begin_date', ascending=True).reset_index(drop=True)
-
+    
+    out_path = dir / out_name
     full_gdf.to_file(out_path)
-    return collection_gdf_path
+    return out_path
 
 
 def get_granule_info(granule: str):
@@ -117,9 +119,9 @@ def find_valid_collect(gdf: gpd.GeoDataFrame, footprint: Polygon, mode: str, orb
     return collect_scheduled, next_collect
 
 
-def get_next_collect(granule):
-    prep_collection_plan()
-    gdf = gpd.read_file('collection.geojson')
+def get_next_collect(granule, dir=Path('.')):
+    prep_collection_plan('collection.geojson', dir)
+    gdf = gpd.read_file(dir / 'collection.geojson')
     max_date = gdf['end_date'].max().date()
     footprint, mode, orbit_relative = get_granule_info(granule)
     # gpd.GeoDataFrame({'id': [1], 'geometry': [footprint]}, crs='EPSG:4326').to_file('scene.geojson')
@@ -163,7 +165,8 @@ def lambda_handler(event, context):
     #     raise e
     print(event)
     granule = event['pathParameters']['granule']
-    message = get_next_collect(granule)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        message = get_next_collect(granule, dir = Path(tmpdirname))
 
     return {
         'statusCode': 200,
@@ -181,7 +184,8 @@ def main():
     parser = ArgumentParser()
     parser.add_argument('granule')
     args = parser.parse_args()
-    message = get_next_collect(args.granule)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        message = get_next_collect(args.granule, dir = Path(tmpdirname))
     print(message)
 
 

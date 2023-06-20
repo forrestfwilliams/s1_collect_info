@@ -8,7 +8,7 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 300
+    Timeout: 30
 
 Resources:
   FindCollectFunction:
@@ -19,6 +19,7 @@ Resources:
       Runtime: python3.10
       Architectures:
         - x86_64
+      MemorySize: 10240
       Events:
         FindCollect:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
