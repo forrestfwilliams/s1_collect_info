@@ -1,3 +1,4 @@
+import os
 import requests
 import tempfile
 from datetime import datetime
@@ -5,10 +6,14 @@ from lxml import etree
 from pathlib import Path
 from urllib.request import urlopen
 
+import boto3
 from bs4 import BeautifulSoup
 import geopandas as gpd
 from shapely import LinearRing
 import pandas as pd
+
+S3 = boto3.client('s3')
+DATASET_BUCKET_NAME = os.environ.get('DatasetBucketName')
 
 
 def scrape_esa_website_for_download_urls():
@@ -93,13 +98,9 @@ def create_collection_plan(out_name='collection.geojson', dir=Path('.')):
 
 
 def lambda_handler(event, context):
-    import os
-    import boto3
-    s3 = boto3.client('s3')
-    dataset_bucket_name = os.environ.get('DatasetBucketName')
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_path = create_collection_plan(dir=Path(tmpdirname))
-        s3.upload_file(str(out_path), dataset_bucket_name, out_path.name)
+        S3.upload_file(str(out_path), DATASET_BUCKET_NAME, out_path.name)
 
     print('Success!')
     return None
