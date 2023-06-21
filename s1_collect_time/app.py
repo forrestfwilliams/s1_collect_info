@@ -74,10 +74,26 @@ def lambda_handler(event, context):
     #     print(e)
 
     #     raise e
-    print(event)
+    import os
+    import boto3
+
+    s3 = boto3.client('s3')
+    dataset_bucket_name = os.environ.get('DatasetBucketName')
     granule = event['pathParameters']['granule']
     with tempfile.TemporaryDirectory() as tmpdirname:
-        message = get_next_collect(granule, dir = Path(tmpdirname))
+        tmpdir = Path(tmpdirname)
+        collection_name = 'collection.geojson'
+        tmp_collection = str(tmpdir / collection_name)
+        print(
+            dataset_bucket_name,
+            type(dataset_bucket_name),
+            tmp_collection,
+            type(tmp_collection),
+            collection_name,
+            type(collection_name),
+        )
+        s3.download_file(dataset_bucket_name, collection_name, tmp_collection)
+        message = get_next_collect(granule, dir=tmpdir)
 
     return {
         'statusCode': 200,
@@ -95,7 +111,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument('granule')
     args = parser.parse_args()
-    message = get_next_collect(args.granule, dir = Path('.'))
+    message = get_next_collect(args.granule, dir=Path('.'))
     print(message)
 
 
