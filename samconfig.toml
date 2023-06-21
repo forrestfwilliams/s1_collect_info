@@ -21,6 +21,7 @@ stack_name = "ffwilliams2-test-s1collect"
 s3_prefix = "ffwilliams2-test-s1collect"
 region = "us-west-2"
 image_repositories = []
+parameter_overrides = "DatasetBucketName=\"dataset-bucket-3iuas\""
 
 [default.package.parameters]
 resolve_s3 = true

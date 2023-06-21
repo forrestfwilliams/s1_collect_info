@@ -8,9 +8,32 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 30
+    Timeout: 300
+
+Parameters:
+  DatasetBucketName:
+    Type: String
 
 Resources:
+  DatasetBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref DatasetBucketName
+  CreateDatasetFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: s1_collect_time/
+      Handler: create_collection.lambda_handler
+      Runtime: python3.10
+      Architectures:
+        - x86_64
+      MemorySize: 10240
+      Environment:
+        Variables:
+          DatasetBucketName: !Ref DatasetBucketName
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DatasetBucketName
   FindCollectFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
