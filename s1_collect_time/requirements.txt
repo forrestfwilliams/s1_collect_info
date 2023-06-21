@@ -2,5 +2,4 @@ geopandas
 asf_search
 beautifulsoup4
 lxml
-requests
-boto3
+urllib3<2
