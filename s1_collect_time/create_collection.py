@@ -9,7 +9,7 @@ from urllib.request import urlopen
 import boto3
 from bs4 import BeautifulSoup
 import geopandas as gpd
-from shapely import LinearRing
+from shapely import LinearRing, Polygon
 import pandas as pd
 
 S3 = boto3.client('s3')
@@ -57,7 +57,7 @@ def parse_placemark(placemark: etree.Element):
     footprint = placemark.find(f'{prefix}LinearRing').find(f'{prefix}coordinates').text
     x_coords = [float(point.split(',')[0]) for point in footprint.split(' ')]
     y_coords = [float(point.split(',')[1]) for point in footprint.split(' ')]
-    footprint = LinearRing(zip(x_coords, y_coords))
+    footprint = Polygon(LinearRing(zip(x_coords, y_coords)))
 
     return (begin_date, end_date, mode, orbit_absolute, orbit_relative, footprint)
 

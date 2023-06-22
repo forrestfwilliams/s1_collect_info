@@ -42,12 +42,17 @@ def find_valid_collect(gdf: gpd.GeoDataFrame, footprint: Union[Polygon, Point], 
 
 
 def get_next_collect(point, collection_dataset, mode=None):
+    mode_msg = ' '
+    if mode:
+        collection_dataset = collection_dataset.loc[collection_dataset['mode'] == mode].copy()
+        mode_msg = f' {mode} '
+
     collect_scheduled, next_collect = find_valid_collect(collection_dataset, point)
     if collect_scheduled:
-        message = f'Next collect is {next_collect}'
+        message = f'Next{mode_msg}collect is {next_collect}'
     else:
         max_date = collection_dataset['end_date'].max().date()
-        message = f'No collect is scheduled on or before {max_date}'
+        message = f'No{mode_msg}collect is scheduled on or before {max_date}'
 
     return message
 
