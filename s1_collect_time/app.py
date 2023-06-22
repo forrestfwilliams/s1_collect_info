@@ -11,7 +11,9 @@ from typing import Union
 
 S3 = boto3.client('s3')
 DATASET_BUCKET_NAME = os.environ.get('DatasetBucketName')
-COLLECTION_DATASET = gpd.read_file(f's3://{DATASET_BUCKET_NAME}/collection.geojson')
+
+if 'AWS_LAMBDA_FUNCTION_NAME' in os.environ:
+    COLLECTION_DATASET = gpd.read_file(f's3://{DATASET_BUCKET_NAME}/collection.geojson')
 
 
 def get_granule_info(granule: str):
@@ -99,12 +101,19 @@ def lambda_handler(event, context):
 
 
 def main():
-    # Test Case 1: S1A_IW_SLC__1SDV_20180405T023745_20180405T023812_021326_024B31_FBCC-SLC
-    # Test Case 2: S1B_IW_SLC__1SDV_20180628T151540_20180628T151607_011575_015476_4673-SLC
     parser = ArgumentParser()
-    parser.add_argument('granule')
+    parser.add_argument('interface', choices=['scene', 'location'], default='scene')
+    parser.add_argument('--scene', default=None, required=False)
+    parser.add_argument('--lon', default=None, required=False, type=float)
+    parser.add_argument('--lat', default=None, required=False, type=float)
+    parser.add_argument('--mode', default=None, required=False)
     args = parser.parse_args()
-    message = get_next_interferometric_collect(args.granule, COLLECTION_DATASET)
+    collection_dataset = gpd.read_file('collection.geojson')
+    if args.interface == 'scene':
+        message = get_next_interferometric_collect(args.scene, collection_dataset)
+    elif args.interface == 'location':
+        point = Point(args.lon, args.lat)
+        message = get_next_collect(point, collection_dataset, args.mode)
     print(message)
 
 
