@@ -28,7 +28,7 @@ def find_valid_insar_collects(collections: gpd.GeoDataFrame, mode: str, orbit_re
     return filtered
 
 
-def find_valid_collect(gdf: gpd.GeoDataFrame, footprint: Union[Polygon, Point]):
+def find_valid_collect(gdf: gpd.GeoDataFrame, footprint: Union[Polygon, Point], mode=None):
     gdf = gdf.loc[gdf['geometry'].intersects(footprint)].copy()
 
     if gdf.shape[0] > 0:
@@ -39,6 +39,17 @@ def find_valid_collect(gdf: gpd.GeoDataFrame, footprint: Union[Polygon, Point]):
         collect_scheduled = False
         next_collect = None
     return collect_scheduled, next_collect
+
+
+def get_next_collect(point, collection_dataset, mode=None):
+    collect_scheduled, next_collect = find_valid_collect(collection_dataset, point)
+    if collect_scheduled:
+        message = f'Next collect is {next_collect}'
+    else:
+        max_date = collection_dataset['end_date'].max().date()
+        message = f'No collect is scheduled on or before {max_date}'
+
+    return message
 
 
 def get_next_interferometric_collect(granule, collection_dataset):
@@ -55,8 +66,22 @@ def get_next_interferometric_collect(granule, collection_dataset):
 
 
 def lambda_handler(event, context):
-    granule = event['pathParameters']['granule']
-    message = get_next_interferometric_collect(granule, COLLECTION_DATASET)
+    url_path = event['path']
+    query_params = event['queryStringParameters']
+    print(url_path)
+    print(query_params)
+    if url_path == '/s1-collect-info/scene':
+        granule = query_params['scene']
+        message = get_next_interferometric_collect(granule, COLLECTION_DATASET)
+    elif url_path == '/s1-collect-info/location':
+        if 'mode' in query_params:
+            mode = query_params['mode']
+        else:
+            mode = None
+        point = Point([query_params['lon'], query_params['lat']])
+        message = get_next_collect(point, COLLECTION_DATASET, mode)
+    else:
+        message = f'{url_path} is not a valid path'
 
     return {
         'statusCode': 200,
