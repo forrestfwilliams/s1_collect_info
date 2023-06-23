@@ -6,7 +6,7 @@ import asf_search as asf
 import boto3
 import geopandas as gpd
 from shapely.geometry import shape, Polygon, Point
-from typing import Union
+from typing import Iterable, Optional, Tuple, Union
 
 
 S3 = boto3.client('s3')
@@ -16,7 +16,7 @@ if 'AWS_LAMBDA_FUNCTION_NAME' in os.environ:
     COLLECTION_DATASET = gpd.read_file(f's3://{DATASET_BUCKET_NAME}/collection.geojson')
 
 
-def get_granule_info(granule: str):
+def get_granule_info(granule: str) -> Iterable:
     result = asf.granule_search(granule)[0]
 
     footprint = shape(result.geometry)
@@ -25,12 +25,14 @@ def get_granule_info(granule: str):
     return footprint, mode, orbit_relative
 
 
-def find_valid_insar_collects(collections: gpd.GeoDataFrame, mode: str, orbit_relative: int):
+def find_valid_insar_collects(collections: gpd.GeoDataFrame, mode: str, orbit_relative: int) -> gpd.GeoDataFrame:
     filtered = collections.loc[(collections['orbit_relative'] == orbit_relative) & (collections['mode'] == mode)]
     return filtered
 
 
-def find_valid_collect(gdf: gpd.GeoDataFrame, footprint: Union[Polygon, Point], mode=None):
+def find_valid_collect(
+    gdf: gpd.GeoDataFrame, footprint: Union[Polygon, Point], mode=None
+) -> Tuple[bool, gpd.GeoDataFrame]:
     gdf = gdf.loc[gdf['geometry'].intersects(footprint)].copy()
 
     if gdf.shape[0] > 0:
@@ -43,7 +45,7 @@ def find_valid_collect(gdf: gpd.GeoDataFrame, footprint: Union[Polygon, Point], 
     return collect_scheduled, next_collect
 
 
-def get_next_collect(point, collection_dataset, mode=None):
+def get_next_collect(point: Point, collection_dataset: gpd.GeoDataFrame, mode: Optional[str] = None) -> str:
     mode_msg = ' '
     if mode:
         collection_dataset = collection_dataset.loc[collection_dataset['mode'] == mode].copy()
@@ -59,7 +61,7 @@ def get_next_collect(point, collection_dataset, mode=None):
     return message
 
 
-def get_next_interferometric_collect(granule, collection_dataset):
+def get_next_interferometric_collect(granule: str, collection_dataset: gpd.GeoDataFrame) -> str:
     footprint, mode, orbit_relative = get_granule_info(granule)
     valid_insar_collects = find_valid_insar_collects(collection_dataset, mode, orbit_relative)
     collect_scheduled, next_collect = find_valid_collect(valid_insar_collects, footprint)
@@ -72,7 +74,7 @@ def get_next_interferometric_collect(granule, collection_dataset):
     return message
 
 
-def lambda_handler(event, context):
+def lambda_handler(event: dict, context: dict) -> dict:
     url_path = event['path']
     query_params = event['queryStringParameters']
     print(url_path)

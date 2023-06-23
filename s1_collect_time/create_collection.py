@@ -4,6 +4,7 @@ import tempfile
 from datetime import datetime
 from lxml import etree
 from pathlib import Path
+from typing import Iterable, List
 from urllib.request import urlopen
 
 import boto3
@@ -16,7 +17,7 @@ S3 = boto3.client('s3')
 DATASET_BUCKET_NAME = os.environ.get('DatasetBucketName')
 
 
-def scrape_esa_website_for_download_urls():
+def scrape_esa_website_for_download_urls() -> List[str]:
     url = 'https://sentinel.esa.int/web/sentinel/missions/sentinel-1/observation-scenario/acquisition-segments'
     page = urlopen(url)
     html = page.read().decode('utf-8')
@@ -28,7 +29,7 @@ def scrape_esa_website_for_download_urls():
     return download_urls
 
 
-def download_kml(url, out_path='collection.kml'):
+def download_kml(url: str, out_path: str = 'collection.kml') -> Path:
     response = requests.get(url)
     if response.status_code == 200:
         with open(out_path, 'wb') as file:
@@ -40,7 +41,7 @@ def download_kml(url, out_path='collection.kml'):
     return out_path
 
 
-def parse_placemark(placemark: etree.Element):
+def parse_placemark(placemark: etree.Element) -> Iterable:
     prefix = './/{http://www.opengis.net/kml/2.2}'
 
     begin_date = placemark.find(f'{prefix}begin').text
@@ -62,7 +63,7 @@ def parse_placemark(placemark: etree.Element):
     return (begin_date, end_date, mode, orbit_absolute, orbit_relative, footprint)
 
 
-def parse_kml(kml_path: Path):
+def parse_kml(kml_path: Path) -> gpd.GeoDataFrame:
     placemark_pattern = './/{http://www.opengis.net/kml/2.2}Placemark'
     tree = etree.parse(kml_path).getroot()
     placemarks = [parse_placemark(elem) for elem in tree.findall(placemark_pattern)]
@@ -71,7 +72,7 @@ def parse_kml(kml_path: Path):
     return gdf
 
 
-def create_collection_plan(out_name='collection.geojson', dir=Path('.')):
+def create_collection_plan(out_name: str = 'collection.geojson', dir=Path('.')) -> Path:
     urls = scrape_esa_website_for_download_urls()
 
     gdfs = []
@@ -97,17 +98,12 @@ def create_collection_plan(out_name='collection.geojson', dir=Path('.')):
     return out_path
 
 
-def lambda_handler(event, context):
+def lambda_handler(event: dict, context: dict):
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_path = create_collection_plan(dir=Path(tmpdirname))
         S3.upload_file(str(out_path), DATASET_BUCKET_NAME, out_path.name)
 
     print('Success!')
-    return None
-
-
-def main():
-    return None
 
 
 if __name__ == '__main__':
