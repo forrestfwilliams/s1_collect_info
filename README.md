@@ -26,8 +26,8 @@ sam build
 sam deploy --guided
 ```
 
-Then you can call you API with the following syntax:
-```bash
+Then you can call your API with the following syntax:
+```
 https://{YOUR_API_URL}/Prod/s1-collect-info/scene?scene=S1A_IW_SLC__1SDV_20180405T023745_20180405T023812_021326_024B31_FBCC-SLC
 https://{YOUR_API_URL}/Prod/s1-collect-info/location?lon=2.4&lat=48.8
 https://{YOUR_API_URL}/Prod/s1-collect-info/location?lon=2.4&lat=48.8&mode=EW
